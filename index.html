@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Todo App</h2>
+
+        <form id="todoForm">
+            <input type="text" id="title" placeholder="Enter title" required>
+            <textarea id="description" placeholder="Enter description" required></textarea>
+
+            <button type="submit" id="submitBtn">Submit</button>
+            <button type="button" id="saveBtn" style="display:none">Save</button>
+        </form>
+
+        <h3>Your Tasks</h3>
+        <div id="taskContainer"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+// Store all tasks here
+let tasks = [];
+let currentEditIndex = -1;
+
+let form = document.getElementById("todoForm");
+let titleInput = document.getElementById("title");
+let descriptionInput = document.getElementById("description");
+
+let submitButton = document.getElementById("submitBtn");
+let saveButton = document.getElementById("saveBtn");
+let taskContainer = document.getElementById("taskContainer");
+
+
+// -------------------------------
+// ADD NEW TASK
+// -------------------------------
+form.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    let taskTitle = titleInput.value;
+    let taskDescription = descriptionInput.value;
+
+    let taskObject = {
+        title: taskTitle,
+        description: taskDescription,
+        time: new Date().getTime()
+    };
+
+    tasks.push(taskObject);
+    sortTasksByTime();
+    displayAllTasks();
+
+    form.reset();
+});
+
+
+// -------------------------------
+// SAVE EDITED TASK AS NEW
+// -------------------------------
+saveButton.addEventListener("click", function() {
+
+    let updatedTitle = titleInput.value;
+    let updatedDescription = descriptionInput.value;
+
+    let updatedTask = {
+        title: updatedTitle,
+        description: updatedDescription,
+        time: new Date().getTime()
+    };
+
+    tasks.push(updatedTask);
+    sortTasksByTime();
+    displayAllTasks();
+
+    form.reset();
+    showSubmitButton();
+});
+
+
+// -------------------------------
+// SHOW ALL TASKS
+// -------------------------------
+function displayAllTasks() {
+    taskContainer.innerHTML = "";
+
+    for (let i = 0; i < tasks.length; i++) {
+
+        let box = document.createElement("div");
+        box.className = "taskBox";
+
+        box.innerHTML =
+            "<h4>" + tasks[i].title + "</h4>" +
+            "<p>" + tasks[i].description + "</p>" +
+            "<button onclick='editTask(" + i + ")'>Edit</button> " +
+            "<button onclick='deleteTask(" + i + ")'>Delete</button>";
+
+        taskContainer.appendChild(box);
+    }
+}
+
+
+// -------------------------------
+// EDIT TASK
+// -------------------------------
+function editTask(index) {
+    currentEditIndex = index;
+
+    titleInput.value = tasks[index].title;
+    descriptionInput.value = tasks[index].description;
+
+    showSaveButton();
+}
+
+
+// -------------------------------
+// DELETE TASK
+// -------------------------------
+function deleteTask(index) {
+    tasks.splice(index, 1);
+    displayAllTasks();
+}
+
+
+// -------------------------------
+// SWITCH TO SAVE MODE
+// -------------------------------
+function showSaveButton() {
+    submitButton.style.display = "none";
+    saveButton.style.display = "inline-block";
+}
+
+
+// -------------------------------
+// SWITCH TO SUBMIT MODE
+// -------------------------------
+function showSubmitButton() {
+    submitButton.style.display = "inline-block";
+    saveButton.style.display = "none";
+}
+
+
+// -------------------------------
+// SORT TASKS BY LATEST FIRST
+// -------------------------------
+function sortTasksByTime() {
+    tasks.sort(function(a, b) {
+        return b.time - a.time;
+    });
+}
+
+
+body {
+    font-family: Arial;
+    background: #f5f5f5;
+}
+
+.container {
+    width: 450px;
+    margin: 50px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 100%;     /* 🔥 Responsive fix */
+}
+
+
+form input, form textarea {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 15px;
+    border:none;
+    background: #007bff;
+    color:white;
+    border-radius: 5px;
+    cursor:pointer;
+}
+
+.taskBox {
+    background: #fff2cc;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 6px;
+    width: 100%;
+     margin-bottom: 20px; 
+    word-wrap: break-word;     
+    overflow-wrap: break-word;
+}
+
+.taskBox button {
+    background: #444;
+    margin-right: 10px;
+}
+
+
+
+      
