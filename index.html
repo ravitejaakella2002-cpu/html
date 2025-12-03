@@ -75,4 +75,128 @@ function displayTask() {
 }
 
 
-      
+
+
+
+// -------------------------
+// 1. Task Interface
+// -------------------------
+interface Task {
+    title: string;
+    description: string;
+    date: string;
+}
+
+// -------------------------
+// 2. Variables
+// -------------------------
+let tasks: Task[] = [];
+
+const form = document.getElementById("todo") as HTMLFormElement;
+const heading = document.getElementById("heading") as HTMLElement;
+const submitBtn = document.getElementById("submit") as HTMLButtonElement;
+
+// -------------------------
+// 3. Display Task Function
+// -------------------------
+function displayTask(): void {
+    const tasksContainer = document.getElementById("tasks") as HTMLElement;
+    tasksContainer.innerHTML = "";
+
+    if (tasks.length === 0) {
+        const emptyMsg = document.createElement("p");
+        emptyMsg.textContent = "You don't have any tasks now";
+        tasksContainer.appendChild(emptyMsg);
+        return;
+    }
+
+    for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+
+        const box = document.createElement("div");
+        box.classList.add("taskBox");
+
+        // Title
+        const titleEl = document.createElement("h3");
+        titleEl.textContent = `Title: ${task.title}`;
+
+        // Description
+        const descEl = document.createElement("p");
+        descEl.textContent = `Description: ${task.description}`;
+
+        // Edit Button
+        const editBtn = document.createElement("button");
+        editBtn.id = "editButton";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", () => editTask(i));
+
+        // Delete Button
+        const delBtn = document.createElement("button");
+        delBtn.id = "deleteButton";
+        delBtn.textContent = "Delete";
+        delBtn.addEventListener("click", () => deleteTask(i));
+
+        // Append children
+        box.appendChild(titleEl);
+        box.appendChild(descEl);
+        box.appendChild(editBtn);
+        box.appendChild(delBtn);
+
+        tasksContainer.appendChild(box);
+    }
+}
+
+// -------------------------
+// 4. Submit Form
+// -------------------------
+form.addEventListener("submit", (event: Event) => {
+    event.preventDefault();
+
+    const titleInput = document.getElementById("title") as HTMLInputElement;
+    const descInput = document.getElementById("description") as HTMLInputElement;
+
+    const taskData: Task = {
+        title: titleInput.value,
+        description: descInput.value,
+        date: new Date().toString()
+    };
+
+    tasks.unshift(taskData);
+    form.reset();
+    resetCreateMode();
+    displayTask();
+});
+
+// -------------------------
+// 5. Edit Task
+// -------------------------
+function editTask(index: number): void {
+    const titleInput = document.getElementById("title") as HTMLInputElement;
+    const descInput = document.getElementById("description") as HTMLInputElement;
+
+    heading.innerHTML = `Edit Task: ${tasks[index].title}`;
+    submitBtn.innerHTML = "Save";
+
+    titleInput.value = tasks[index].title;
+    descInput.value = tasks[index].description;
+
+    // Remove old task immediately
+    deleteTask(index);
+}
+
+// -------------------------
+// 6. Delete Task
+// -------------------------
+function deleteTask(index: number): void {
+    tasks.splice(index, 1);
+    displayTask();
+}
+
+// -------------------------
+// 7. Reset Form
+// -------------------------
+function resetCreateMode(): void {
+    submitBtn.innerHTML = "Create Task";
+    heading.innerHTML = "Create TODO List";
+}
+
