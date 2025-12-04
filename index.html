@@ -26,150 +26,170 @@
 </body>
 </html>
 
-// Store all tasks here
-function displayTask() {
-    const tasksContainer = document.getElementById("tasks");
+<div id="tasks"></div>
+
+<template id="taskTemplate">
+  <div class="taskBox">
+    <h3 class="task-title"></h3>
+    <p class="task-desc"></p>
+    <button class="edit-btn">Edit</button>
+    <button class="delete-btn">Delete</button>
+  </div>
+</template>
+
+// Task list
+let tasks = [];
+
+const form = document.getElementById("todo");
+const heading = document.getElementById("heading");
+const submitBtn = document.getElementById("submit");
+const tasksContainer = document.getElementById("tasks");
+const template = document.getElementById("taskTemplate");
+
+// FORM SUBMIT
+form.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    const titleInput = document.getElementById("title");
+    const descInput = document.getElementById("description");
+
+    const task = {
+        title: titleInput.value,
+        description: descInput.value,
+        date: new Date().toString()
+    };
+
+    tasks.unshift(task);
+
+    form.reset();
+    resetCreateMode();
+    displayTasks();
+});
+
+// DISPLAY TASKS FROM ARRAY
+function displayTasks() {
     tasksContainer.innerHTML = "";
 
     if (tasks.length === 0) {
-        const emptyMsg = document.createElement("p");
-        emptyMsg.textContent = "You don't have any tasks now";
-        tasksContainer.appendChild(emptyMsg);
+        tasksContainer.innerHTML = "<p>You don't have any tasks now</p>";
         return;
     }
 
     for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
 
-        const box = document.createElement("div");
-        box.classList.add("taskBox");
+        // Clone the HTML template
+        const clone = template.content.cloneNode(true);
 
-        // Title
-        const titleEl = document.createElement("h3");
-        titleEl.textContent = `Title: ${task.title}`;
+        const titleEl = clone.querySelector(".task-title");
+        const descEl = clone.querySelector(".task-desc");
+        const editBtn = clone.querySelector(".edit-btn");
+        const delBtn = clone.querySelector(".delete-btn");
 
-        // Description
-        const descEl = document.createElement("p");
-        descEl.textContent = `Description: ${task.description}`;
+        titleEl.textContent = task.title;
+        descEl.textContent = task.description;
 
-        // Edit button
-        const editBtn = document.createElement("button");
-        editBtn.id = "editButton";
-        editBtn.textContent = "Edit";
-        editBtn.addEventListener("click", () => edit(i));
+        // BUTTON ACTIONS
+        editBtn.addEventListener("click", function () {
+            editTask(i);
+        });
 
-        // Delete button
-        const delBtn = document.createElement("button");
-        delBtn.id = "deleteButton";
-        delBtn.textContent = "Delete";
-        delBtn.addEventListener("click", () => delBtnFn(i));
+        delBtn.addEventListener("click", function () {
+            deleteTask(i);
+        });
 
-        // Append elements
-        box.appendChild(titleEl);
-        box.appendChild(descEl);
-        box.appendChild(editBtn);
-        box.appendChild(delBtn);
-
-        tasksContainer.appendChild(box);
+        tasksContainer.appendChild(clone);
     }
+}
+
+// EDIT TASK
+function editTask(index) {
+    const titleInput = document.getElementById("title");
+    const descInput = document.getElementById("description");
+
+    heading.innerHTML = `Edit Task: ${tasks[index].title}`;
+    submitBtn.innerHTML = "Save";
+
+    titleInput.value = tasks[index].title;
+    descInput.value = tasks[index].description;
+
+    deleteTask(index);
+}
+
+// DELETE TASK
+function deleteTask(index) {
+    tasks.splice(index, 1);
+    displayTasks();
+}
+
+// RESET FORM MODE
+function resetCreateMode() {
+    submitBtn.innerHTML = "Create Task";
+    heading.innerHTML = "Create TODO List";
 }
 
 
 
-
-
-// -------------------------
-// 1. Task Interface
-// -------------------------
-interface Task {
+        interface Task {
     title: string;
     description: string;
     date: string;
 }
 
-// -------------------------
-// 2. Variables
-// -------------------------
 let tasks: Task[] = [];
 
 const form = document.getElementById("todo") as HTMLFormElement;
 const heading = document.getElementById("heading") as HTMLElement;
 const submitBtn = document.getElementById("submit") as HTMLButtonElement;
+const tasksContainer = document.getElementById("tasks") as HTMLElement;
+const template = document.getElementById("taskTemplate") as HTMLTemplateElement;
 
-// -------------------------
-// 3. Display Task Function
-// -------------------------
-function displayTask(): void {
-    const tasksContainer = document.getElementById("tasks") as HTMLElement;
-    tasksContainer.innerHTML = "";
-
-    if (tasks.length === 0) {
-        const emptyMsg = document.createElement("p");
-        emptyMsg.textContent = "You don't have any tasks now";
-        tasksContainer.appendChild(emptyMsg);
-        return;
-    }
-
-    for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
-
-        const box = document.createElement("div");
-        box.classList.add("taskBox");
-
-        // Title
-        const titleEl = document.createElement("h3");
-        titleEl.textContent = `Title: ${task.title}`;
-
-        // Description
-        const descEl = document.createElement("p");
-        descEl.textContent = `Description: ${task.description}`;
-
-        // Edit Button
-        const editBtn = document.createElement("button");
-        editBtn.id = "editButton";
-        editBtn.textContent = "Edit";
-        editBtn.addEventListener("click", () => editTask(i));
-
-        // Delete Button
-        const delBtn = document.createElement("button");
-        delBtn.id = "deleteButton";
-        delBtn.textContent = "Delete";
-        delBtn.addEventListener("click", () => deleteTask(i));
-
-        // Append children
-        box.appendChild(titleEl);
-        box.appendChild(descEl);
-        box.appendChild(editBtn);
-        box.appendChild(delBtn);
-
-        tasksContainer.appendChild(box);
-    }
-}
-
-// -------------------------
-// 4. Submit Form
-// -------------------------
 form.addEventListener("submit", (event: Event) => {
     event.preventDefault();
 
     const titleInput = document.getElementById("title") as HTMLInputElement;
     const descInput = document.getElementById("description") as HTMLInputElement;
 
-    const taskData: Task = {
+    const task: Task = {
         title: titleInput.value,
         description: descInput.value,
         date: new Date().toString()
     };
 
-    tasks.unshift(taskData);
+    tasks.unshift(task);
+
     form.reset();
     resetCreateMode();
-    displayTask();
+    displayTasks();
 });
 
-// -------------------------
-// 5. Edit Task
-// -------------------------
+function displayTasks(): void {
+    tasksContainer.innerHTML = "";
+
+    if (tasks.length === 0) {
+        tasksContainer.innerHTML = "<p>You don't have any tasks now</p>";
+        return;
+    }
+
+    for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        const clone = template.content.cloneNode(true) as HTMLElement;
+
+        const titleEl = clone.querySelector(".task-title") as HTMLElement;
+        const descEl = clone.querySelector(".task-desc") as HTMLElement;
+        const editBtn = clone.querySelector(".edit-btn") as HTMLButtonElement;
+        const delBtn = clone.querySelector(".delete-btn") as HTMLButtonElement;
+
+        titleEl.textContent = task.title;
+        descEl.textContent = task.description;
+
+        editBtn.addEventListener("click", () => editTask(i));
+        delBtn.addEventListener("click", () => deleteTask(i));
+
+        tasksContainer.appendChild(clone);
+    }
+}
+
 function editTask(index: number): void {
     const titleInput = document.getElementById("title") as HTMLInputElement;
     const descInput = document.getElementById("description") as HTMLInputElement;
@@ -180,23 +200,15 @@ function editTask(index: number): void {
     titleInput.value = tasks[index].title;
     descInput.value = tasks[index].description;
 
-    // Remove old task immediately
     deleteTask(index);
 }
 
-// -------------------------
-// 6. Delete Task
-// -------------------------
 function deleteTask(index: number): void {
     tasks.splice(index, 1);
-    displayTask();
+    displayTasks();
 }
 
-// -------------------------
-// 7. Reset Form
-// -------------------------
 function resetCreateMode(): void {
     submitBtn.innerHTML = "Create Task";
     heading.innerHTML = "Create TODO List";
 }
-
