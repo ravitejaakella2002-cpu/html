@@ -81,3 +81,99 @@ const server = http.createServer(async (req, res) => {
 server.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
 });
+
+
+import { Request, Response } from "express";
+import { Cart } from "../models/Cart";
+import { CartItem } from "../models/CartItem";
+import { Product } from "../models/Product";
+
+export const addMultipleItemsToCart = async (
+  req: Request<{}, {}, AddToCartBody>,
+  res: Response
+): Promise<void> => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ message: "Items array is required" });
+      return;
+    }
+
+    const userId = (req as any).user?.id; // adjust if you have custom type
+    const sessionId = req.sessionID;
+
+    let cart;
+
+    // 🔹 Find or create cart
+    if (userId) {
+      cart = await Cart.findOne({ where: { userId } });
+      if (!cart) {
+        cart = await Cart.create({ userId });
+      }
+    } else {
+      cart = await Cart.findOne({ where: { sessionId } });
+      if (!cart) {
+        cart = await Cart.create({ sessionId });
+      }
+    }
+
+    const addedItems = [];
+
+    for (const item of items) {
+      const { productId, quantity } = item;
+
+      if (!productId || !quantity || quantity <= 0) {
+        res.status(400).json({ message: "Invalid product or quantity" });
+        return;
+      }
+
+      const product = await Product.findByPk(productId);
+
+      if (!product) {
+        res.status(404).json({ message: `Product ${productId} not found` });
+        return;
+      }
+
+      const existingItem = await CartItem.findOne({
+        where: {
+          cartId: cart.id,
+          productId,
+        },
+      });
+
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity;
+        const newPrice = product.price * newQuantity;
+
+        await existingItem.update({
+          quantity: newQuantity,
+          price: newPrice,
+        });
+
+        addedItems.push(existingItem);
+      } else {
+        const price = product.price * quantity;
+
+        const newItem = await CartItem.create({
+          cartId: cart.id,
+          productId,
+          quantity,
+          price,
+        });
+
+        addedItems.push(newItem);
+      }
+    }
+
+    res.status(200).json({
+      message: "Cart updated successfully",
+      cartId: cart.id,
+      items: addedItems,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
