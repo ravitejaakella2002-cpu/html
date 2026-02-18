@@ -193,3 +193,36 @@ async function handleGuestCart(
     cart: req.session.cart,
   };
 }
+
+import { Request, Response } from "express";
+import { Cart } from "../models/Cart";
+import { CartItem } from "../models/CartItem";
+import { Product } from "../models/Product";
+
+export const addItemsToCart = async (
+  req: Request<{}, {}, AddToCartBody>,
+  res: Response
+): Promise<void> => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ message: "Items array is required" });
+      return;
+    }
+
+    // Decide cart type
+    if (req.user) {
+      const result = await handleUserCart(req.user.id, items);
+      res.status(200).json(result);
+      return;
+    }
+
+    const result = await handleGuestCart(req, items);
+    res.status(200).json(result);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
