@@ -136,3 +136,108 @@ export const mergeCart = async (
     res.status(status).json(body);
   }
 };
+
+
+import { Op, Transaction } from "sequelize";
+import { Cart, CartItem, Product } from "../models";
+
+interface AddToCartItem {
+  productId: number;
+  quantity: number;
+}
+
+export const addItemsToCart = async (
+  owner: number | string,
+  items: AddToCartItem[],
+  transaction: Transaction
+): Promise<void> => {
+
+  // 1️⃣ Get or create cart
+  let cart;
+
+  if (typeof owner === "number") {
+    cart = await Cart.findOne({
+      where: { userId: owner },
+      transaction
+    });
+
+    if (!cart) {
+      cart = await Cart.create(
+        { userId: owner },
+        { transaction }
+      );
+    }
+
+  } else {
+    cart = await Cart.findOne({
+      where: { sessionId: owner },
+      transaction
+    });
+
+    if (!cart) {
+      cart = await Cart.create(
+        { sessionId: owner },
+        { transaction }
+      );
+    }
+  }
+
+  // 2️⃣ Fetch all products in one DB call
+  const productIds = items.map(i => i.productId);
+
+  const products = await Product.findAll({
+    where: { id: { [Op.in]: productIds } },
+    transaction
+  });
+
+  const productMap = new Map(
+    products.map(p => [p.id, p])
+  );
+
+  // 3️⃣ Fetch existing cart items in one DB call
+  const existingCartItems = await CartItem.findAll({
+    where: {
+      cartId: cart.id,
+      productId: { [Op.in]: productIds }
+    },
+    transaction
+  });
+
+  const existingMap = new Map(
+    existingCartItems.map(ci => [ci.productId, ci])
+  );
+
+  const bulkData: {
+    cartId: number;
+    productId: number;
+    quantity: number;
+  }[] = [];
+
+  // 4️⃣ Prepare bulk upsert data
+  for (const item of items) {
+    const product = productMap.get(item.productId);
+
+    if (!product) continue;
+    if (product.quantity < item.quantity) continue;
+
+    const existing = existingMap.get(item.productId);
+
+    const finalQuantity = existing
+      ? existing.quantity + item.quantity
+      : item.quantity;
+
+    bulkData.push({
+      cartId: cart.id,
+      productId: item.productId,
+      quantity: finalQuantity
+    });
+  }
+
+  // 5️⃣ Bulk upsert
+  if (bulkData.length > 0) {
+    await CartItem.bulkCreate(bulkData, {
+      updateOnDuplicate: ["quantity"],
+      transaction
+    });
+  }
+};
