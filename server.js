@@ -82,147 +82,57 @@ server.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
 });
 
-async function handleUserCart(
-  userId: number,
-  items: CartItemInput[]
-) {
-  let cart = await Cart.findOne({ where: { userId } });
-
-  if (!cart) {
-    cart = await Cart.create({ userId });
-  }
-
-  const updatedItems = [];
-
-  for (const item of items) {
-    const { productId, quantity } = item;
-
-    if (!productId || quantity <= 0) {
-      throw new Error("Invalid product or quantity");
-    }
-
-    const product = await Product.findByPk(productId);
-
-    if (!product) {
-      throw new Error(`Product ${productId} not found`);
-    }
-
-    if (product.quantity < quantity) {
-      throw new Error(`Insufficient stock for product ${productId}`);
-    }
-
-    const existingItem = await CartItem.findOne({
-      where: {
-        cartId: cart.id,
-        productId,
-      },
-    });
-
-    if (existingItem) {
-      const newQuantity = existingItem.quantity + quantity;
-      const newPrice = product.price * newQuantity;
-
-      await existingItem.update({
-        quantity: newQuantity,
-        price: newPrice,
-      });
-
-      updatedItems.push(existingItem);
-    } else {
-      const price = product.price * quantity;
-
-      const newItem = await CartItem.create({
-        cartId: cart.id,
-        productId,
-        quantity,
-        price,
-      });
-
-      updatedItems.push(newItem);
-    }
-  }
-
-  return {
-    type: "user",
-    cartId: cart.id,
-    items: updatedItems,
-  };
-  }
-
-async function handleGuestCart(
-  req: Request,
-  items: CartItemInput[]
-) {
-  if (!req.session.cart) {
-    req.session.cart = [];
-  }
-
-  for (const item of items) {
-    const { productId, quantity } = item;
-
-    if (!productId || quantity <= 0) {
-      throw new Error("Invalid product or quantity");
-    }
-
-    const product = await Product.findByPk(productId);
-
-    if (!product) {
-      throw new Error(`Product ${productId} not found`);
-    }
-
-    if (product.quantity < quantity) {
-      throw new Error(`Insufficient stock for product ${productId}`);
-    }
-
-    const existingIndex = req.session.cart.findIndex(
-      (cartItem: any) => cartItem.productId === productId
-    );
-
-    if (existingIndex !== -1) {
-      req.session.cart[existingIndex].quantity += quantity;
-    } else {
-      req.session.cart.push({
-        productId,
-        quantity,
-      });
-    }
-  }
-
-  return {
-    type: "guest",
-    cart: req.session.cart,
-  };
-}
-
-import { Request, Response } from "express";
-import { Cart } from "../models/Cart";
-import { CartItem } from "../models/CartItem";
-import { Product } from "../models/Product";
-
-export const addItemsToCart = async (
-  req: Request<{}, {}, AddToCartBody>,
+export const mergeCart = async (
+  sessionId: string,
+  userId: bigint,
   res: Response
 ): Promise<void> => {
   try {
-    const { items } = req.body;
+    // 1️⃣ Get session cart
+    const sessionCart = await cartService.getCartBySessionId(sessionId);
+    if (!sessionCart) return;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ message: "Items array is required" });
-      return;
+    const sessionItems = await cartItemsService.getCartItems(sessionCart.id);
+
+    if (sessionItems.length === 0) return;
+
+    // 2️⃣ Get or create user cart
+    const userCart = await cartService.getOrCreateUserCart(userId);
+    const userItems = await cartItemsService.getCartItems(userCart.id);
+
+    // 3️⃣ Create map for quick lookup
+    const userItemMap = new Map(
+      userItems.map(item => [item.productId, item])
+    );
+
+    const mergedItems = [];
+
+    for (const item of sessionItems) {
+      const existing = userItemMap.get(item.productId);
+
+      if (existing) {
+        mergedItems.push({
+          cartId: userCart.id,
+          productId: item.productId,
+          quantity: existing.quantity + item.quantity
+        });
+      } else {
+        mergedItems.push({
+          cartId: userCart.id,
+          productId: item.productId,
+          quantity: item.quantity
+        });
+      }
     }
 
-    // Decide cart type
-    if (req.user) {
-      const result = await handleUserCart(req.user.id, items);
-      res.status(200).json(result);
-      return;
-    }
+    // 4️⃣ Bulk upsert
+    await cartItemsService.bulkUpsertCartItems(mergedItems);
 
-    const result = await handleGuestCart(req, items);
-    res.status(200).json(result);
+    // 5️⃣ Delete session cart
+    await cartService.deleteCartBySessionId(sessionId);
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+  } catch (error: unknown) {
+    const { status, body } = formatError(error);
+    res.status(status).json(body);
   }
 };
